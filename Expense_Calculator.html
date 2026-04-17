@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate WOW Expense Tracker</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background-size: cover;
+    background-position: center;
+    transition: 0.6s;
+    color: white;
+}
+
+/* OVERLAY */
+body::before {
+    content: "";
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: -1;
+}
+
+/* CONTAINER */
+.container {
+    width: 400px;
+    margin: 40px auto;
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(15px);
+    background: rgba(255,255,255,0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 1s ease;
+}
+
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(-20px);}
+    to {opacity: 1;}
+}
+
+h2 { text-align: center; }
+
+input, select, button {
+    width: 100%;
+    margin: 8px 0;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+}
+
+/* BUTTON */
+button {
+    background: linear-gradient(45deg, #ff512f, #dd2476);
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    transform: scale(1.05);
+}
+
+/* PREVIEW */
+.preview {
+    width: 100%;
+    height: 180px;
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    margin: 10px 0;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: 0.5s;
+}
+
+.preview.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* EXPENSE */
+.expense {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.2);
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 8px;
+    animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+    from {transform: translateX(-50px); opacity: 0;}
+    to {transform: translateX(0);}
+}
+
+.total {
+    text-align: center;
+    font-size: 20px;
+    margin-top: 10px;
+}
+
+.warning {
+    text-align: center;
+    color: yellow;
+}
+
+/* INSIGHTS */
+.insights {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.2);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+/* 🐰 FLOATING BUNNY */
+#bunny {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    text-align: center;
+    animation: floatBunny 3s infinite ease-in-out;
+}
+
+#bunny img { width: 80px; }
+
+#bunnyMsg {
+    background: white;
+    color: black;
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+/* 🐰 POPUP BUNNY */
+#popupBunny {
+    position: fixed;
+    bottom: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: 0.6s;
+    text-align: center;
+}
+
+#popupBunny.show { bottom: 60px; }
+
+#popupBunny img { width: 100px; }
+
+#popupMsg {
+    background: yellow;
+    color: black;
+    padding: 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    animation: bounce 1s infinite;
+}
+
+/* ANIMATIONS */
+@keyframes floatBunny {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>💰 Ultimate Expense Tracker</h2>
+
+    <input id="desc" placeholder="Description">
+    <input id="amount" type="number" placeholder="Amount">
+
+    <select id="category" onchange="updateUI()">
+        <option value="">Select Category</option>
+        <option value="milk">Milk</option>
+        <option value="food">Food</option>
+        <option value="groceries">Groceries</option>
+        <option value="toys">Playthings</option>
+        <option value="dress">Dress</option>
+        <option value="jewels">Jewels</option>
+        <option value="hotel">Hotel</option>
+        <option value="vacation">Vacation</option>
+        <option value="function">Function</option>
+        <option value="trip">Trip</option>
+        <option value="college">College Fees</option>
+    </select>
+
+    <div id="preview" class="preview"></div>
+
+    <button onclick="addExpense()">Add Expense</button>
+
+    <div id="list"></div>
+
+    <div class="total">Total: ₹<span id="total">0</span></div>
+    <div class="warning" id="warning"></div>
+
+    <!-- INSIGHTS -->
+    <div class="insights">
+        📊 Top Category: <span id="topCat">-</span><br>
+        💡 Insight: <span id="insightMsg">Track your spending</span>
+    </div>
+</div>
+
+<!-- 🐰 FLOATING BUNNY -->
+<div id="bunny">
+    <img src="https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif">
+    <div id="bunnyMsg">🐰 Hi! Track your expenses 😊</div>
+</div>
+
+<!-- 🐰 POPUP BUNNY -->
+<div id="popupBunny">
+    <img src="https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif">
+    <div id="popupMsg">Oh my! You are spending too much! 😱</div>
+</div>
+
+<script>
+let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+let total = 0;
+
+/* IMAGES */
+const media = {
+    milk:"https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
+    food:"https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+    groceries:"https://images.unsplash.com/photo-1542838132-92c53300491e",
+    toys:"https://images.unsplash.com/photo-1601758003122-68c8c3b5e7e2",
+    dress:"https://images.unsplash.com/photo-1521335629791-ce4aec67dd53",
+    jewels:"https://images.unsplash.com/photo-1515562141207-7a88fb7ce338",
+    hotel:"https://images.unsplash.com/photo-1566073771259-6a8506099945",
+    vacation:"https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+    function:"https://images.unsplash.com/photo-1511795409834-ef04bbd61622",
+    trip:"https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+    college:"https://images.unsplash.com/photo-1562774053-701939374585"
+};
+
+/* BACKGROUND */
+function updateUI(){
+    let cat = document.getElementById("category").value;
+    let preview = document.getElementById("preview");
+
+    if(media[cat]){
+        document.body.style.backgroundImage = `url(${media[cat]})`;
+        preview.style.backgroundImage = `url(${media[cat]})`;
+        preview.classList.add("show");
+    }
+}
+
+/* RENDER */
+function render(){
+    let list = document.getElementById("list");
+    list.innerHTML = "";
+    total = 0;
+
+    let categoryTotals = {};
+
+    expenses.forEach((e, i)=>{
+        total += e.amount;
+
+        categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+
+        let div = document.createElement("div");
+        div.className = "expense";
+        div.innerHTML = `
+            ${e.desc} (${e.category}) - ₹${e.amount}
+            <button onclick="deleteExpense(${i})">❌</button>
+        `;
+        list.appendChild(div);
+    });
+
+    document.getElementById("total").innerText = total;
+
+    /* TOP CATEGORY */
+    let top = Object.keys(categoryTotals).reduce((a,b)=>
+        categoryTotals[a] > categoryTotals[b] ? a : b, "-"
+    );
+
+    document.getElementById("topCat").innerText = top;
+
+    /* INSIGHT */
+    let insight = "Good control 👍";
+    if(total > 5000) insight = "⚠ Overspending detected!";
+    else if(total > 3000) insight = "⚡ Spending increasing!";
+
+    document.getElementById("insightMsg").innerText = insight;
+
+    /* BUNNY */
+    let bunnyMsg = document.getElementById("bunnyMsg");
+
+    if(total > 5000){
+        bunnyMsg.innerText = "🐰 Oh no!! Too much spending 😱";
+
+        let popup = document.getElementById("popupBunny");
+        popup.classList.add("show");
+
+        setTimeout(()=>popup.classList.remove("show"),3000);
+    }
+    else if(total > 3000){
+        bunnyMsg.innerText = "🐰 Careful! Spending rising 😬";
+    }
+    else{
+        bunnyMsg.innerText = "🐰 Great! Keep saving 😊";
+    }
+
+    localStorage.setItem("expenses", JSON.stringify(expenses));
+}
+
+/* ADD */
+function addExpense(){
+    let desc = document.getElementById("desc").value;
+    let amount = parseFloat(document.getElementById("amount").value);
+    let category = document.getElementById("category").value;
+
+    if(!desc || isNaN(amount) || !category){
+        alert("Fill all fields!");
+        return;
+    }
+
+    expenses.push({desc, amount, category});
+    render();
+
+    document.getElementById("desc").value = "";
+    document.getElementById("amount").value = "";
+}
+
+/* DELETE */
+function deleteExpense(i){
+    expenses.splice(i,1);
+    render();
+}
+
+render();
+</script>
+
+</body>
+</html>
